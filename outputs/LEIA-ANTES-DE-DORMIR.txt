@@ -1,0 +1,28 @@
+DESPERTADOR - 14/10/2026: 06:00, 06:30, 07:00
+
+Abra ABRIR-PAINEL.cmd ou INICIAR-DESPERTADOR.cmd.
+Os horarios salvos ficam ativos assim que o painel abre: nao precisa confirmar S.
+Confira ATIVO e Proximo: 14/10/2026 06:00:00.
+
+Para configurar: escolha data e hora e clique Adicionar horario.
+Para testar: Teste em 1 minuto. O teste nao remove os alarmes reais.
+Som no maximo: teste com o fone fora dos ouvidos.
+Quando tocar: digite ACORDEI no campo e pressione Enter.
+Sem resposta, o toque para apos cinco minutos; os proximos horarios continuam ativos.
+
+Clique JBL: opcional, configure em cada abertura. Voce tem 10 segundos
+para posicionar o mouse sobre Falha. Deixe o app no mesmo lugar, visivel,
+e o Windows desbloqueado. O clique ocorre no proximo disparo, inclusive teste.
+Depois de testar, configure o clique novamente para o alarme real.
+O som funciona mesmo sem o clique JBL.
+
+Deixe o painel aberto (pode minimizar), computador na tomada e tampa aberta.
+Nao desligue, hiberne nem reinicie. Verifique a carga, conexao e saida de som do JBL.
+O painel impede suspensao automatica enquanto aberto, mas nao impede falta de
+energia, desligamento manual, reinicio ou falha do fone.
+
+Ao abrir, horarios vencidos ha mais de 5 minutos sao marcados como Horario passou.
+Se fechar, os alarmes param. Ao reabrir, os horarios futuros salvos ficam ativos.
+Um alarme ja confirmado nao se repete. Adicione outro horario se precisar.
+Nao use a janela antiga de terminal junto do painel: ela tem uma agenda separada.
+Confira a data e o proximo alarme na tela antes de dormir.

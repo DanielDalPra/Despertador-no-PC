@@ -1,0 +1,5 @@
+work/
+*.exe
+outputs/alarmes-config.xml*
+outputs/historico-alarmes.txt
+outputs/validacao-interface.txt
