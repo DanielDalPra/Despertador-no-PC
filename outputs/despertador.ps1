@@ -4,25 +4,6 @@ Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 public static class AwakeAlarm {
-  [StructLayout(LayoutKind.Sequential)] public struct Point { public int X; public int Y; }
-  [DllImport("user32.dll")] public static extern bool GetCursorPos(out Point point);
-  [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(Point point);
-  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
-  [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
-  public static Point SavedPoint;
-  public static IntPtr SavedWindow;
-  public static bool SaveClickTarget() {
-    if (!GetCursorPos(out SavedPoint)) return false;
-    SavedWindow = WindowFromPoint(SavedPoint);
-    return SavedWindow != IntPtr.Zero;
-  }
-  public static bool ClickSavedTarget() {
-    if (SavedWindow == IntPtr.Zero || WindowFromPoint(SavedPoint) != SavedWindow) return false;
-    if (!SetCursorPos(SavedPoint.X, SavedPoint.Y)) return false;
-    mouse_event(0x0002, 0, 0, 0, UIntPtr.Zero);
-    mouse_event(0x0004, 0, 0, 0, UIntPtr.Zero);
-    return true;
-  }
   [DllImport("kernel32.dll")] public static extern uint SetThreadExecutionState(uint flags);
   [DllImport("user32.dll")] public static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extra);
   public static void MaxVolume() {
@@ -104,19 +85,6 @@ try {
     $answer = Read-Host 'Voce ouviu o teste no volume desejado? Digite S para ativar'
     if ($answer -notmatch '^[sS]$') { exit }
     }
-    $clickPending = $false
-    $clickAnswer = Read-Host 'Quer UM clique no primeiro alarme para ligar o efeito JBL? Digite S, ou Enter para nao'
-    if ($clickAnswer -match '^[sS]$') {
-        Write-Host 'Abra a tela de iluminacao da JBL. Deixe o efeito desligado e posicione o mouse sobre Falha.'
-        Write-Host 'Voce tem 10 segundos. Nao clique. A posicao sera salva automaticamente.' -ForegroundColor Yellow
-        Start-Sleep -Seconds 10
-        $clickPending = [AwakeAlarm]::SaveClickTarget()
-        if ($clickPending) {
-            Write-Host 'Posicao salva. Deixe o app JBL visivel e o Windows desbloqueado.' -ForegroundColor Green
-        } else {
-            Write-Host 'Nao foi possivel salvar a posicao. O alarme de som continua ativo.'
-        }
-    }
     Write-Host 'ATIVADO. Cada alarme toca por ate 5 minutos.' -ForegroundColor Green
     Write-Host 'Durante o alarme: digite ACORDEI e pressione Enter para parar esse toque.'
     Write-Host 'Enquanto espera: Q encerra o programa.'
@@ -140,14 +108,6 @@ try {
         # Discard keys pressed before this alarm started.
         while ([Console]::KeyAvailable) { [void][Console]::ReadKey($true) }
         Write-Host ('ALARME ' + $alarm.ToString('HH:mm') + ' - digite ACORDEI e pressione Enter') -ForegroundColor Yellow
-        if ($clickPending) {
-            if ([AwakeAlarm]::ClickSavedTarget()) {
-                Write-Host 'Clique enviado ao ponto salvo. Para digitar ACORDEI, volte a esta janela.'
-            } else {
-                Write-Host 'Clique ignorado: o alvo foi coberto ou mudou. O som vai tocar normalmente.'
-            }
-            $clickPending = $false
-        }
         [AwakeAlarm]::MaxVolume()
         $player.PlayLooping()
         $end = (Get-Date).AddMinutes(5)

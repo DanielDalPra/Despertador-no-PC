@@ -17,16 +17,11 @@ public class AlarmItem {
 public class AlarmWindow : Form {
     [DllImport("kernel32.dll")] static extern uint SetThreadExecutionState(uint flags);
     [DllImport("user32.dll")] static extern void keybd_event(byte key, byte scan, uint flags, UIntPtr extra);
-    [StructLayout(LayoutKind.Sequential)] struct PointNative { public int X, Y; }
-    [DllImport("user32.dll")] static extern bool GetCursorPos(out PointNative p);
-    [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(PointNative p);
-    [DllImport("user32.dll")] static extern bool SetCursorPos(int x, int y);
-    [DllImport("user32.dll")] static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
     readonly List<AlarmItem> alarms = new List<AlarmItem>();
     readonly string folder;
     readonly string settings;
     readonly Timer timer = new Timer { Interval = 200 };
-    readonly Label clock = new Label(), status = new Label(), next = new Label(), notice = new Label(), clickStatus = new Label();
+    readonly Label clock = new Label(), status = new Label(), next = new Label(), notice = new Label();
     readonly ListView list = new ListView();
     readonly DateTimePicker date = new DateTimePicker(), time = new DateTimePicker();
     readonly TextBox answer = new TextBox();
@@ -34,10 +29,8 @@ public class AlarmWindow : Form {
     readonly SoundPlayer sound;
     readonly MemoryStream wave;
     AlarmItem active;
-    DateTime stopAt, captureAt;
-    bool capturing, clickReady, initialized;
-    PointNative clickPoint;
-    IntPtr clickWindow;
+    DateTime stopAt;
+    bool initialized;
     string fault = "";
     readonly bool silentVerification;
 
@@ -108,7 +101,7 @@ public class AlarmWindow : Form {
     AlarmWindow(string outputFolder, bool silent) {
         silentVerification=silent;
         folder=outputFolder; settings=Path.Combine(folder,"alarmes-config.xml");
-        Text="Despertador | alarmes ativos"; ClientSize=new Size(830,720); MinimumSize=Size; MaximumSize=Size;
+        Text="Despertador | alarmes ativos"; ClientSize=new Size(830,650); MinimumSize=Size; MaximumSize=Size;
         StartPosition=FormStartPosition.CenterScreen; BackColor=Color.FromArgb(15,23,42); Font=new Font("Segoe UI",10);
         AutoScaleMode=AutoScaleMode.None;
         LabelAt("DESPERTADOR",24,18,500,35,21);
@@ -127,14 +120,11 @@ public class AlarmWindow : Form {
         ButtonAt("Adicionar horario",308,392,168,(s,e)=>AddAlarm());
         remove=ButtonAt("Remover selecionado",489,392,205,(s,e)=>RemoveAlarm());
         ButtonAt("Teste em 1 minuto",24,442,200,(s,e)=>TestAlarm());
-        ButtonAt("Configurar clique JBL",238,442,220,(s,e)=>CaptureClick());
-        ButtonAt("Desativar clique JBL",472,442,220,(s,e)=>{clickReady=false; capturing=false; clickStatus.Text="Clique JBL desligado. O som continua ativo.";});
-        clickStatus=LabelAt("Clique JBL opcional: configure nesta abertura; deixe o app visivel e desbloqueado.",24,487,780,35,10);
-        LabelAt("Quando tocar, digite ACORDEI e pressione Enter:",24,531,780,25,11);
-        answer.Location=new Point(24,562); answer.Size=new Size(435,30); answer.CharacterCasing=CharacterCasing.Upper;
+        LabelAt("Quando tocar, digite ACORDEI e pressione Enter:",24,491,780,25,11);
+        answer.Location=new Point(24,522); answer.Size=new Size(435,30); answer.CharacterCasing=CharacterCasing.Upper;
         answer.Enabled=false; answer.KeyDown+=(s,e)=> { if(e.KeyCode==Keys.Enter) { e.SuppressKeyPress=true; Acknowledge(); } }; Controls.Add(answer);
-        ButtonAt("Confirmar ACORDEI",472,559,220,(s,e)=>Acknowledge());
-        notice=LabelAt("",24,608,780,88,10);
+        ButtonAt("Confirmar ACORDEI",472,519,220,(s,e)=>Acknowledge());
+        notice=LabelAt("",24,568,780,70,10);
         wave=new MemoryStream(MakeWave()); sound=new SoundPlayer(wave); sound.Load();
         LoadSchedule(); RefreshList();
         timer.Tick+=(s,e)=>TickAlarm();
@@ -175,10 +165,6 @@ public class AlarmWindow : Form {
         alarms.Add(a); RefreshList(); Log("Teste agendado para "+a.At.ToString("HH:mm:ss"));
         notice.Text="TESTE: vai tocar em um minuto, no volume maximo. Tire o fone dos ouvidos.";
     }
-    void CaptureClick() {
-        capturing=true; clickReady=false; captureAt=DateTime.Now.AddSeconds(10);
-        clickStatus.Text="Em 10 segundos: coloque o mouse sobre Falha no app JBL, sem clicar.";
-    }
     void Acknowledge() {
         if(active==null)return;
         if(!String.Equals(answer.Text.Trim(),"ACORDEI",StringComparison.OrdinalIgnoreCase)) {answer.SelectAll();answer.Focus();return;}
@@ -191,30 +177,13 @@ public class AlarmWindow : Form {
     void StartAlarm(AlarmItem a) {
         active=a; a.State="Tocando"; stopAt=DateTime.Now.AddMinutes(5);
         answer.Clear(); answer.Enabled=true;
-        // Audio is started before optional UI integration; a failed click cannot block sound.
         try {if(!silentVerification) {MaxVolume(); sound.PlayLooping();}} catch(Exception e) {fault="ERRO NO SOM: "+e.Message; Log(fault);}
         Save(); RefreshList(); Log("DISPAROU: "+a.At.ToString("dd/MM/yyyy HH:mm:ss"));
-        if(clickReady) {
-            clickReady=false;
-            try {
-                if(WindowFromPoint(clickPoint)==clickWindow && clickWindow!=IntPtr.Zero && SetCursorPos(clickPoint.X,clickPoint.Y)) {
-                    mouse_event(2,0,0,0,UIntPtr.Zero);mouse_event(4,0,0,0,UIntPtr.Zero);
-                    clickStatus.Text="Clique JBL enviado. Reconfigure se quiser um novo clique.";
-                } else clickStatus.Text="Clique JBL ignorado: alvo mudou ou esta coberto. Som continua ativo.";
-            } catch {clickStatus.Text="Clique JBL falhou. Som continua ativo.";}
-        }
         if(!silentVerification) {Show(); WindowState=FormWindowState.Normal; Activate(); answer.Focus();}
     }
     void TickAlarm() {
         var now=DateTime.Now;
         clock.Text="Agora: "+now.ToString("dddd, dd/MM/yyyy HH:mm:ss");
-        if(capturing) {
-            if(now>=captureAt) {
-                capturing=false; clickReady=GetCursorPos(out clickPoint); clickWindow=clickReady ? WindowFromPoint(clickPoint):IntPtr.Zero;
-                clickReady=clickWindow!=IntPtr.Zero;
-                clickStatus.Text=clickReady ? "Posicao salva. Nao mova nem cubra o app JBL. Clique no proximo alarme (inclusive teste)." : "Falha ao salvar ponto. Som continua ativo.";
-            } else clickStatus.Text="Posicione o mouse sobre Falha: captura em "+Math.Ceiling((captureAt-now).TotalSeconds)+" s.";
-        }
         if(active!=null && now>=stopAt)StopAlarm("Concluido: limite de 5 minutos");
         if(active==null) {
             var due=alarms.Where(a=>IsDue(a,now)).OrderBy(a=>a.At).FirstOrDefault();
@@ -237,6 +206,7 @@ public class AlarmWindow : Form {
         var window=new AlarmWindow(directory,true);
         // Keep fixed real alarms in the future for this isolated verification.
         window.alarms.Clear(); window.alarms.AddRange(Defaults());
+        foreach(var scheduled in window.alarms) scheduled.At=DateTime.Today.AddDays(1).Add(scheduled.At.TimeOfDay);
         var test=new AlarmItem {At=DateTime.Now.AddSeconds(-1),Test=true};
         window.alarms.Add(test); window.TickAlarm();
         if(window.active!=test || !window.answer.Enabled)throw new Exception("Test did not trigger");
@@ -270,7 +240,7 @@ public static class AlarmApp {
         }
         if(args.Length==2 && args[0]=="--verify-lifecycle") {
             AlarmWindow.VerifyLifecycle(args[1]);
-            File.WriteAllText(Path.Combine(args[1],"resultado.txt"),"PASS: disparo por horario; resposta incorreta nao para; ACORDEI para; limite de cinco minutos simulado; proximos alarmes preservados; agenda salva. Sem som e sem cliques.");
+            File.WriteAllText(Path.Combine(args[1],"resultado.txt"),"PASS: disparo por horario; resposta incorreta nao para; ACORDEI para; limite de cinco minutos simulado; proximos alarmes preservados; agenda salva. Sem som.");
             return;
         }
         bool created;
